@@ -1,29 +1,62 @@
-# Welcome to your Lovable project
+# PROMPT//BREACH
 
-This project was built with [Lovable](https://lovable.dev).
+An educational game about prompt injection and defenses, built with TanStack
+Start, TypeScript, React, and Tailwind CSS.
 
-## Build with Lovable
+## Requirements
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+- [Bun](https://bun.sh/) (the project uses Bun and the `bun.lock` lockfile)
+- [Git](https://git-scm.com/downloads), if you are cloning the repository
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+You do not need to install Node.js or npm to run the project with Bun.
 
-## Development
+## Install Bun
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Choose the command for your operating system:
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+### Windows (PowerShell)
+
+```powershell
+powershell -c "irm bun.sh/install.ps1 | iex"
 ```
 
-## Built with
+### macOS or Linux
 
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+```sh
+curl -fsSL https://bun.sh/install | bash
+```
+
+If the installer says the `bun` command is not found, open a new terminal so
+your `PATH` updates, then verify the installation:
+
+```sh
+bun --version
+```
+
+For other installation options and troubleshooting, see the
+[official Bun installation guide](https://bun.sh/docs/installation).
+
+## Download and run the project
+
+Clone this repository, change into its folder, install dependencies, and start
+the development server:
+
+```sh
+git clone <https://github.com/kylekarasinski/prompt-breacher>
+cd prompt-breach
+bun install
+bun run dev
+```
+
+Replace `<https://github.com/kylekarasinski/prompt-breacher>` with this repository's clone URL. Open the local URL
+printed in the terminal in your browser.
+
+To stop the development server, press **Ctrl+C** in the terminal.
+
+## Other commands
+
+```sh
+bun run test   # Run tests
+bun run lint   # Check linting
+bun run build  # Create a production build
+```
