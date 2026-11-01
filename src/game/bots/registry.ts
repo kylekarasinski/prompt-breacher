@@ -1,11 +1,8 @@
 import type { BotEngine, BotRequest, Level, Defense, ChatMessage } from "../types";
-import { keywordBot } from "./keywordBot";
 import { llmBot } from "./llmBot.stub";
-import { CHAT_CONFIG } from "../config/chat";
 
 /** Register bot engines here. Levels select one with `botEngineId`. */
 const ENGINES: Record<string, BotEngine> = {
-  [keywordBot.id]: keywordBot,
   [llmBot.id]: llmBot,
 };
 
@@ -27,6 +24,5 @@ export async function askBot(level: Level, defenses: Defense[], history: ChatMes
     message,
     systemPrompt: buildSystemPrompt(level, defenses),
   };
-  if (engine.id === "keyword") await new Promise((r) => setTimeout(r, CHAT_CONFIG.mockLatencyMs));
   return engine.reply(req);
 }

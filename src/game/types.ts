@@ -20,26 +20,17 @@ export interface InjectionType {
   description: string;
 }
 
-/** A defense the bot can have. `inputFilter` lets the mock bot enforce it. */
+/** A defense the bot can have. `inputFilter` blocks known attacks before the model call. */
 export interface Defense {
   id: string;
   name: string;
   description: string;
   /**
-   * Optional mock enforcement for the keyword bot. Return a reply string to
-   * block the message, or null to let it through. A real LLM backend would
-   * instead translate `promptAddition` into its system prompt.
+   * Return a reply string to block the message, or null to let it through.
    */
   inputFilter?: (message: string) => string | null;
   /** Text appended to the system prompt when this defense is active. */
   promptAddition?: string;
-}
-
-/** Keyword rule for the mock "AI". First matching rule wins. */
-export interface KeywordRule {
-  /** Message must contain at least one word from EACH group (case-insensitive). */
-  allOf: string[][];
-  reply: string;
 }
 
 /** How a level is won. */
@@ -73,8 +64,8 @@ export interface Level {
   win: WinCondition;
   /** Which bot engine answers (see src/game/bots/registry.ts). */
   botEngineId: string;
-  /** Engine-specific config. For "keyword": { rules, fallback }. */
-  botConfig: { rules?: KeywordRule[]; fallback?: string; [k: string]: unknown };
+  /** Optional engine-specific configuration. */
+  botConfig: { [k: string]: unknown };
   /** Static win-popup text (no AI request). */
   explanation: {
     technique: string;
