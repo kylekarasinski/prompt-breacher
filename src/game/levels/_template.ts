@@ -17,11 +17,8 @@ export const templateLevel: Level = {
   starters: ["[Starter 1]", "[Starter 2]"],
   win: { kind: "passcode", passcode: "CHANGE_ME" },
   // win: { kind: "goal", check: (reply) => reply.includes("TARGET") },
-  botEngineId: "keyword", // swap to "llm" once a backend exists
-  botConfig: {
-    rules: [{ allOf: [["keyword"], ["other"]], reply: "[Response]" }],
-    fallback: "[Default response]",
-  },
+  botEngineId: "llm",
+  botConfig: {},
   explanation: {
     technique: "[Technique name]",
     whyItWorked: "[Static explanation]",
