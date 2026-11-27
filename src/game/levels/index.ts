@@ -3,9 +3,11 @@ import { DIFFICULTIES } from "../config/difficulties";
 import { getDefense } from "../config/defenses";
 import { overrideEasy } from "./override-easy";
 import { roleplayEasy } from "./roleplay-easy";
+import { overrideMedium } from "./override-medium";
+import { overrideHard } from "./override-hard";
 
 /** REGISTER LEVELS HERE. Order doesn't matter; grouping is automatic. */
-export const LEVELS: Level[] = [overrideEasy, roleplayEasy];
+export const LEVELS: Level[] = [overrideEasy, overrideMedium, overrideHard, roleplayEasy];
 
 const diffOrder = (id: string) => DIFFICULTIES.find((d) => d.id === id)?.order ?? 99;
 
