@@ -36,7 +36,13 @@ function LevelSelect() {
         <h1 className="mt-1 text-3xl font-bold">Pick an injection type</h1>
         <div className="mt-6 grid gap-4">
           {INJECTION_TYPES.map((t) => (
-            <TypeCard key={t.id} typeId={t.id} name={t.name} desc={t.description} completed={completed} />
+            <TypeCard
+              key={t.id}
+              typeId={t.id}
+              name={t.name}
+              desc={t.description}
+              completed={completed}
+            />
           ))}
         </div>
       </main>
@@ -44,12 +50,22 @@ function LevelSelect() {
   );
 }
 
-function TypeCard({ typeId, name, desc, completed }: { typeId: string; name: string; desc: string; completed: string[] }) {
+function TypeCard({
+  typeId,
+  name,
+  desc,
+  completed,
+}: {
+  typeId: string;
+  name: string;
+  desc: string;
+  completed: string[];
+}) {
   const firstOpen = sortedDiffs.find((d) => {
     const l = findLevel(typeId, d.id);
     return l && !completed.includes(l.id);
   });
-  const [sel, setSel] = useState(firstOpen?.id ?? sortedDiffs[0].id);
+  const [sel, setSel] = useState(firstOpen?.id ?? sortedDiffs[0]?.id ?? "");
   const levels = sortedDiffs.map((d) => findLevel(typeId, d.id)).filter(Boolean);
   const allDone = levels.length > 0 && levels.every((l) => completed.includes(l!.id));
   const selected = findLevel(typeId, sel);
@@ -87,7 +103,9 @@ function TypeCard({ typeId, name, desc, completed }: { typeId: string; name: str
           Start
         </Link>
       ) : (
-        <button className="btn-ghost" disabled>Start</button>
+        <button className="btn-ghost" disabled>
+          Start
+        </button>
       )}
     </div>
   );

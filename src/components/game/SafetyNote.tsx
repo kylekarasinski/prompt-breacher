@@ -8,8 +8,8 @@ export function SafetyNote() {
     <div className="mt-4 flex gap-3 rounded-md border border-warning/50 bg-warning/10 p-3 text-sm text-warning">
       <TriangleAlert className="h-5 w-5 shrink-0" />
       <p>
-        The content discussed in this project is for educational purposes <b>ONLY</b>. Do not use these
-        against systems, but learn the methods to counter them in your programs!
+        The content discussed in this project is for educational purposes <b>ONLY</b>. Do not use
+        these against systems, but learn the methods to counter them in your programs!
       </p>
     </div>
   );

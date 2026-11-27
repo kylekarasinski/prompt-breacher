@@ -14,7 +14,12 @@ export function buildSystemPrompt(level: Level, defenses: Defense[], hideSecret 
   return [base, ...extra].join("\n");
 }
 
-export async function askBot(level: Level, defenses: Defense[], history: ChatMessage[], message: string) {
+export async function askBot(
+  level: Level,
+  defenses: Defense[],
+  history: ChatMessage[],
+  message: string,
+) {
   const engine = ENGINES[level.botEngineId];
   if (!engine) throw new Error(`Unknown bot engine: ${level.botEngineId}`);
   const req: BotRequest = {

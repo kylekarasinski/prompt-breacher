@@ -21,6 +21,7 @@ src/game/
     llm.functions.ts       Server-only OpenRouter request
     registry.ts            Picks an engine, builds the system prompt
   progress.ts              Saves completion in localStorage
+  chatHistory.ts           Per-level chat history in sessionStorage (survives refresh)
 ```
 
 ## Current architecture
@@ -55,6 +56,10 @@ levels evaluate the reply with `win.check()`. Passcode levels are completed in
 the side panel when the entered passcode matches. The route then displays the
 static explanation and `progress.ts` saves completion in browser
 `localStorage`; there is currently no database or remote user account.
+
+The current conversation for each level is kept in `sessionStorage` by
+`chatHistory.ts`, so a refresh keeps it but closing the tab starts fresh.
+"Replay level" clears it.
 
 ### Important testing distinction
 

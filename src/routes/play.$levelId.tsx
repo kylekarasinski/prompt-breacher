@@ -8,6 +8,7 @@ import { WinDialog } from "@/components/game/WinDialog";
 import { getLevel, defensesFor } from "@/game/levels";
 import { DIFFICULTIES } from "@/game/config/difficulties";
 import { useProgress } from "@/game/progress";
+import { clearChat } from "@/game/chatHistory";
 
 export const Route = createFileRoute("/play/$levelId")({
   loader: ({ params }) => {
@@ -53,7 +54,13 @@ function Play() {
         <section className="panel p-4">
           <div className="flex items-start gap-2">
             <h1 className="flex-1 text-2xl font-bold">{level.name}</h1>
-            <button className="btn-ghost p-2 lg:hidden" aria-label="Toggle hints" onClick={() => setDrawer(!drawer)}>
+            <button
+              className="btn-ghost p-2 lg:hidden"
+              aria-label={drawer ? "Hide bot prompt and hints" : "Show bot prompt and hints"}
+              aria-expanded={drawer}
+              aria-controls="side-panel"
+              onClick={() => setDrawer(!drawer)}
+            >
               <PanelRight className="h-4 w-4" />
             </button>
           </div>
@@ -76,8 +83,12 @@ function Play() {
           )}
         </section>
 
-        <section className={`panel flex items-center gap-3 p-4 ${won ? "border-success panel-glow" : ""}`}>
-          <span className={`flex h-8 w-8 items-center justify-center rounded border ${won ? "border-success text-success" : "border-destructive text-destructive"}`}>
+        <section
+          className={`panel flex items-center gap-3 p-4 ${won ? "border-success panel-glow" : ""}`}
+        >
+          <span
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded border ${won ? "border-success text-success" : "border-destructive text-destructive"}`}
+          >
             {won ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
           </span>
           <span className="label">Goal</span>
@@ -86,10 +97,22 @@ function Play() {
 
         <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
           <ChatPanel level={level} defenses={defenses as never} onWin={onWin} won={!!won} />
-          {drawer && <SidePanel level={level} defenses={defenses as never} onWin={onWin} onClose={() => setDrawer(false)} />}
+          {drawer && (
+            <SidePanel
+              level={level}
+              defenses={defenses as never}
+              onWin={onWin}
+              onClose={() => setDrawer(false)}
+            />
+          )}
         </div>
         {!drawer && (
-          <button className="btn-ghost hidden lg:inline-flex" onClick={() => setDrawer(true)}>
+          <button
+            className="btn-ghost hidden lg:inline-flex"
+            aria-expanded={false}
+            aria-controls="side-panel"
+            onClick={() => setDrawer(true)}
+          >
             Show bot prompt and hints
           </button>
         )}
@@ -99,6 +122,7 @@ function Play() {
           level={level}
           winningPrompt={won}
           onReplay={() => {
+            clearChat(level.id);
             setWon(null);
             setShowWin(false);
             setRound((r) => r + 1);

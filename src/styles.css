@@ -111,7 +111,7 @@
   .btn-primary { @apply bg-primary text-primary-foreground hover:bg-primary/85; }
   .btn-ghost { @apply border bg-transparent text-foreground hover:bg-secondary; }
   .chip { @apply inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs; }
-  .field { @apply w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring; }
+  .field { @apply w-full min-w-0 rounded-md border bg-background px-3 py-2 text-base sm:text-sm outline-none focus:ring-1 focus:ring-ring; }
   .cursor-blink::after { content: "_"; animation: blink 1s steps(1) infinite; }
 }
 

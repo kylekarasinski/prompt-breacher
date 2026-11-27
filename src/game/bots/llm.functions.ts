@@ -22,7 +22,11 @@ const viteEnv = import.meta.env as Record<string, string | undefined>;
 function validateInput(value: unknown): OpenRouterInput {
   if (!value || typeof value !== "object") throw new Error("Invalid model request.");
   const input = value as Partial<OpenRouterInput>;
-  if (typeof input.systemPrompt !== "string" || typeof input.message !== "string" || !Array.isArray(input.history)) {
+  if (
+    typeof input.systemPrompt !== "string" ||
+    typeof input.message !== "string" ||
+    !Array.isArray(input.history)
+  ) {
     throw new Error("Invalid model request.");
   }
   return {
@@ -41,7 +45,7 @@ function validateInput(value: unknown): OpenRouterInput {
 export const askOpenRouter = createServerFn({ method: "POST" })
   .validator(validateInput)
   .handler(async ({ data }) => {
-    const apiKey = process.env.OPENROUTER_API_KEY ?? viteEnv.OPENROUTER_API_KEY;
+    const apiKey = process.env["OPENROUTER_API_KEY"] ?? viteEnv["OPENROUTER_API_KEY"];
     if (!apiKey) throw new Error("OPENROUTER_API_KEY is not configured on the server.");
 
     const response = await fetch(OPENROUTER_URL, {
@@ -49,11 +53,11 @@ export const askOpenRouter = createServerFn({ method: "POST" })
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": process.env.OPENROUTER_SITE_URL ?? "http://localhost:3000",
+        "HTTP-Referer": process.env["OPENROUTER_SITE_URL"] ?? "http://localhost:3000",
         "X-OpenRouter-Title": "PROMPT//BREACH",
       },
       body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL ?? "openrouter/free",
+        model: process.env["OPENROUTER_MODEL"] ?? "openrouter/free",
         messages: [
           { role: "system", content: data.systemPrompt },
           ...data.history,
