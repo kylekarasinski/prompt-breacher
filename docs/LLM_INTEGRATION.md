@@ -13,8 +13,9 @@ The private `callOpenRouter` helper in `src/game/server/openrouter.ts` is used b
 the server-side `BotEngine` registry. The public chat function accepts a
 registered level ID and limited conversation turns. The server chooses the
 engine and assembles the system message, defense additions, transformed user
-turns and current input. Passcode verification and defense blocks run without
-calling OpenRouter.
+turns and current input. Passcode verification and input-filter blocks run
+without calling OpenRouter. Output filters check the OpenRouter reply before it
+is returned or scored.
 
 The request defaults to `openrouter/free`, with temperature 0.4, a 300-token
 output cap and a 30-second timeout. The request asks providers to disable

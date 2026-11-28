@@ -24,8 +24,9 @@ all types and uses the registered catalog to determine playable slots.
 
 A level's `explanation.defenseId` names the defense it teaches. Later levels
 of the same type inherit it in difficulty order. Use `inputFilter` to reject
-raw messages, `wrapInput` to transform allowed messages, or `promptAddition`
-to append model instructions. Keep defense logic and synthetic passcodes in
+raw messages (it also receives the validated prior turns), `outputFilter` to
+replace a model reply, `wrapInput` to transform allowed messages, or
+`promptAddition` to append model instructions. Keep defense logic and synthetic passcodes in
 the private subtree.
 
 See [Gameplay API](API.md), [Architecture](ARCHITECTURE.md) and

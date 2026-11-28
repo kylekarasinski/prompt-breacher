@@ -22,15 +22,21 @@ export interface InjectionType {
   description: string;
 }
 
-/** A defense the bot can have. `inputFilter` blocks known attacks before the model call. */
+/**
+ * A defense the bot can have. `inputFilter` blocks known attacks before the model call;
+ * `outputFilter` blocks the model's reply before it reaches the player.
+ */
 export interface Defense {
   id: string;
   name: string;
   description: string;
   /**
    * Return a reply string to block the message, or null to let it through.
+   * `history` is the validated conversation before this message.
    */
-  inputFilter?: (message: string) => string | null;
+  inputFilter?: (message: string, history: ChatTurn[]) => string | null;
+  /** Return replacement text to block the bot's reply, or null to let it through. */
+  outputFilter?: (reply: string, level: Level) => string | null;
   /** Text appended to the system prompt when this defense is active. */
   promptAddition?: string;
   /** Transform raw user input just before it is sent to the model. */

@@ -3,7 +3,12 @@ export const MAX_INPUT_LENGTH = 500;
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 export type SendChatInput = { levelId: string; history: ChatTurn[]; message: string };
-export type SendChatReply = { reply: string; blockedBy?: string; won: boolean };
+export type SendChatReply = {
+  reply: string;
+  blockedBy?: string;
+  blockedStage?: "input" | "output";
+  won: boolean;
+};
 export type CheckPasscodeInput = { levelId: string; guess: string };
 export type CheckPasscodeReply = { correct: boolean };
 

@@ -48,16 +48,20 @@ export async function runChat(input: unknown): Promise<GameResult<SendChatReply>
     const defenses = defensesFor(level);
     const message = input.message.trim();
     for (const defense of defenses) {
-      const blocked = defense.inputFilter?.(message);
-      if (blocked) return { reply: blocked, blockedBy: defense.id, won: false };
+      const blocked = defense.inputFilter?.(message, history);
+      if (blocked) {
+        return { reply: blocked, blockedBy: defense.id, blockedStage: "input", won: false };
+      }
     }
 
     // Drop earlier blocked inputs and their paired refusals from the provider context.
     const allowedHistory = history.filter((turn, index) => {
-      const userTurn = turn.role === "user" ? turn : history[index - 1];
+      const userIndex = turn.role === "user" ? index : index - 1;
+      const userTurn = history[userIndex];
+      const prior = history.slice(0, userIndex);
       return (
         userTurn?.role !== "user" ||
-        !defenses.some((defense) => defense.inputFilter?.(userTurn.content))
+        !defenses.some((defense) => defense.inputFilter?.(userTurn.content, prior))
       );
     });
     const wrap = (text: string) =>
@@ -70,6 +74,13 @@ export async function runChat(input: unknown): Promise<GameResult<SendChatReply>
       ),
       message: wrap(message),
     });
+
+    for (const defense of defenses) {
+      const blocked = defense.outputFilter?.(reply, level);
+      if (blocked !== null && blocked !== undefined) {
+        return { reply: blocked, blockedBy: defense.id, blockedStage: "output", won: false };
+      }
+    }
 
     return { reply, won: level.win.kind === "goal" && level.win.check(reply, message) };
   } catch (error) {

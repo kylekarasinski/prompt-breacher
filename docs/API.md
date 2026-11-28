@@ -15,7 +15,7 @@ handoff records no cross-team sign-off.
 
 ## sendChat
 
-POST `sendChat({ levelId, history, message }) → { reply, blockedBy?, won }`.
+POST `sendChat({ levelId, history, message }) → { reply, blockedBy?, blockedStage?, won }`.
 
 - `levelId` is the registered level ID. `message` is a nonblank string of at most
   500 UTF-16 code units before trimming.
@@ -23,9 +23,12 @@ POST `sendChat({ levelId, history, message }) → { reply, blockedBy?, won }`.
   `{ role: "user" | "assistant", content: string }` and nonblank content of at most
   500 UTF-16 code units. Client history is untrusted, including assistant turns.
 - `reply` is the provider or defense reply. If an inherited defense blocks the
-  current input, `blockedBy` is its ID and `won` is false. Goal scoring uses
-  the current genuine provider reply and the original current message.
-  Passcode chat always returns `won: false`.
+  current input, `blockedBy` is its ID, `blockedStage` is `"input"`, `won` is
+  false and the provider is not called. If an inherited defense's output filter
+  blocks the provider reply, `reply` is the filter's replacement text,
+  `blockedBy` is its ID, `blockedStage` is `"output"` and `won` is false.
+  Goal scoring uses only a provider reply that passed every output filter, and
+  the original current message. Passcode chat always returns `won: false`.
 
 ## checkPasscode
 
