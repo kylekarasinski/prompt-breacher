@@ -66,7 +66,7 @@ export async function runChat(input: unknown): Promise<GameResult<SendChatReply>
     });
     const wrap = (text: string) =>
       defenses.reduce((value, defense) => defense.wrapInput?.(value) ?? value, text);
-    const reply = await askBot({
+    const { text: reply, model } = await askBot({
       level,
       systemPrompt: buildSystemPrompt(level, defenses),
       history: allowedHistory.map((turn) =>
@@ -74,15 +74,26 @@ export async function runChat(input: unknown): Promise<GameResult<SendChatReply>
       ),
       message: wrap(message),
     });
+    const answeredBy = model ? { model } : {};
 
     for (const defense of defenses) {
       const blocked = defense.outputFilter?.(reply, level);
       if (blocked !== null && blocked !== undefined) {
-        return { reply: blocked, blockedBy: defense.id, blockedStage: "output", won: false };
+        return {
+          reply: blocked,
+          blockedBy: defense.id,
+          blockedStage: "output",
+          won: false,
+          ...answeredBy,
+        };
       }
     }
 
-    return { reply, won: level.win.kind === "goal" && level.win.check(reply, message) };
+    return {
+      reply,
+      won: level.win.kind === "goal" && level.win.check(reply, message),
+      ...answeredBy,
+    };
   } catch (error) {
     return { error: error instanceof ProviderError ? error.code : "INTERNAL_ERROR" };
   }

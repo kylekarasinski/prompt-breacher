@@ -9,7 +9,7 @@ import { LEVELS } from "@/game/server/levels";
 // Replies come from the server in real play; here we only check each level reaches an engine.
 vi.mock("@/game/server/openrouter", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/game/server/openrouter")>()),
-  openRouterEngine: { id: "llm", reply: vi.fn(async () => "ok") },
+  openRouterEngine: { id: "llm", reply: vi.fn(async () => ({ text: "ok" })) },
 }));
 
 describe.each(LEVELS.map((l) => [l.id, l] as const))("level %s", (_id, level) => {

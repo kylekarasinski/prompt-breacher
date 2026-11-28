@@ -241,25 +241,24 @@ describe("sendChat", () => {
     [408, "TIMEOUT"],
     [504, "TIMEOUT"],
   ])("maps provider status %s to %s without returning raw errors", async (status, code) => {
-    fetchMock.mockResolvedValueOnce(new Response("private upstream diagnostic", { status }));
+    fetchMock.mockImplementation(
+      async () => new Response("private upstream diagnostic", { status }),
+    );
     await expect(send(medium, "review")).resolves.toEqual({ error: code });
   });
 
   it("maps bad payloads, network errors and abort timeouts to typed results", async () => {
-    fetchMock.mockResolvedValueOnce(new Response("malformed payload"));
-    fetchMock.mockResolvedValueOnce(modelReply(" "));
-    fetchMock.mockResolvedValueOnce(Response.json({ error: { code: 429 } }));
-    fetchMock.mockResolvedValueOnce(Response.json({ error: { code: 504 } }));
-    fetchMock.mockRejectedValueOnce(new Error("provider hostname"));
-    fetchMock.mockRejectedValueOnce(new DOMException("timed out", "TimeoutError"));
-    for (const code of [
-      "PROVIDER_DOWN",
-      "PROVIDER_DOWN",
-      "RATE_LIMITED",
-      "TIMEOUT",
-      "PROVIDER_DOWN",
-      "TIMEOUT",
-    ]) {
+    // Each failure is retried once, so every case is served to both attempts.
+    const cases: [() => Promise<Response>, string][] = [
+      [async () => new Response("malformed payload"), "PROVIDER_DOWN"],
+      [async () => modelReply(" "), "PROVIDER_DOWN"],
+      [async () => Response.json({ error: { code: 429 } }), "RATE_LIMITED"],
+      [async () => Response.json({ error: { code: 504 } }), "TIMEOUT"],
+      [() => Promise.reject(new Error("provider hostname")), "PROVIDER_DOWN"],
+      [() => Promise.reject(new DOMException("timed out", "TimeoutError")), "TIMEOUT"],
+    ];
+    for (const [respond, code] of cases) {
+      fetchMock.mockImplementation(respond);
       await expect(send(medium, "review")).resolves.toEqual({ error: code });
     }
   });
@@ -303,7 +302,7 @@ describe("checkPasscode and public catalog", () => {
   });
 
   it("projects all levels without exposing passcodes or private configuration", () => {
-    expect(publicCatalog).toHaveLength(11);
+    expect(publicCatalog).toHaveLength(LEVELS.length);
     const serialized = JSON.stringify(publicCatalog);
     for (const level of LEVELS) {
       const metadata = publicCatalog.find((item) => item.id === level.id);

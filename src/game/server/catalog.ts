@@ -1,3 +1,5 @@
+import { MAX_INPUT_LENGTH } from "../api";
+import type { GameResult } from "../api";
 import type { PublicDefense, PublicLevel } from "../types";
 import { getDefense } from "./defenses";
 import { LEVELS, defensesFor } from "./levels";
@@ -31,3 +33,19 @@ export const publicCatalog: PublicLevel[] = LEVELS.map((level) => {
     taughtDefense: publicDefense(taughtDefense),
   };
 });
+
+export function findPublicLevel(input: unknown): GameResult<PublicLevel> {
+  if (
+    input === null ||
+    typeof input !== "object" ||
+    Object.keys(input).length !== 1 ||
+    !("levelId" in input) ||
+    typeof input.levelId !== "string" ||
+    !input.levelId.trim() ||
+    input.levelId.length > MAX_INPUT_LENGTH
+  ) {
+    return { error: "INVALID_INPUT" };
+  }
+  const { levelId } = input;
+  return publicCatalog.find((level) => level.id === levelId) ?? { error: "LEVEL_NOT_FOUND" };
+}

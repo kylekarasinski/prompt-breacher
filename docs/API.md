@@ -15,7 +15,7 @@ handoff records no cross-team sign-off.
 
 ## sendChat
 
-POST `sendChat({ levelId, history, message }) → { reply, blockedBy?, blockedStage?, won }`.
+POST `sendChat({ levelId, history, message }) → { reply, blockedBy?, blockedStage?, won, model? }`.
 
 - `levelId` is the registered level ID. `message` is a nonblank string of at most
   500 UTF-16 code units before trimming.
@@ -29,6 +29,12 @@ POST `sendChat({ levelId, history, message }) → { reply, blockedBy?, blockedSt
   `blockedBy` is its ID, `blockedStage` is `"output"` and `won` is false.
   Goal scoring uses only a provider reply that passed every output filter, and
   the original current message. Passcode chat always returns `won: false`.
+- `model` is the model OpenRouter reported for a provider reply, including an
+  output-blocked one. It is absent for input blocks and when the provider
+  reports no model.
+- Each client IP may send 10 messages per 60 seconds. Further messages in the
+  window return `RATE_LIMITED` without calling the provider. The limiter is
+  in memory, so it resets on restart and is per server instance.
 
 ## checkPasscode
 
@@ -50,6 +56,14 @@ functions and engine configuration stay in server modules. The masked preview
 intentionally includes level and defense teaching prose to preserve the game UI.
 Treat that prose as public when authoring levels.
 
+## getPublicLevel
+
+GET `getPublicLevel({ levelId }) → PublicLevel`.
+
+Returns the catalog entry for one level. An unknown ID returns
+`LEVEL_NOT_FOUND`. Input other than exactly `{ levelId }` with a nonblank
+string of at most 500 UTF-16 code units returns `INVALID_INPUT`.
+
 ## Error results
 
 An application-level failure returns `{ error: GameErrorCode }`. Gameplay
@@ -60,7 +74,7 @@ error path.
 | Code              | Meaning                                                                                |
 | ----------------- | -------------------------------------------------------------------------------------- |
 | `NO_API_KEY`      | The server's OpenRouter key is missing or blank.                                       |
-| `RATE_LIMITED`    | OpenRouter rejected the request for rate limiting.                                     |
+| `RATE_LIMITED`    | The client sent too many messages, or OpenRouter rejected the request for rate limits. |
 | `PROVIDER_DOWN`   | The provider was unreachable, returned another failure, or returned an unusable reply. |
 | `TIMEOUT`         | The provider request exceeded the deadline or reported a timeout.                      |
 | `INVALID_INPUT`   | Input or history failed validation, or a guess targeted a goal level.                  |

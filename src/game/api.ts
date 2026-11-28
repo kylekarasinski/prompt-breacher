@@ -8,9 +8,12 @@ export type SendChatReply = {
   blockedBy?: string;
   blockedStage?: "input" | "output";
   won: boolean;
+  /** The model the provider reported for this reply. Absent for input blocks. */
+  model?: string;
 };
 export type CheckPasscodeInput = { levelId: string; guess: string };
 export type CheckPasscodeReply = { correct: boolean };
+export type GetPublicLevelInput = { levelId: string };
 
 export type GameErrorCode =
   | "NO_API_KEY"
@@ -25,7 +28,7 @@ export type GameResult<T> = T | { error: GameErrorCode };
 
 export const CHAT_ERRORS: Record<GameErrorCode, string> = {
   NO_API_KEY: "The server is missing its OpenRouter API key.",
-  RATE_LIMITED: "The model provider is rate limiting requests. Try again shortly.",
+  RATE_LIMITED: "Too many messages right now. Wait a minute and try again.",
   PROVIDER_DOWN: "Could not reach the bot. Your message is still in the box.",
   TIMEOUT: "The bot took too long to respond.",
   INVALID_INPUT: "Enter a message of 1 to 500 characters.",

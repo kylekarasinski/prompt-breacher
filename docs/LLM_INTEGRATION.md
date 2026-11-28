@@ -21,15 +21,20 @@ The request defaults to `openrouter/free`, with temperature 0.4, a 300-token
 output cap and a 30-second timeout. The request asks providers to disable
 reasoning so the short response budget is available for visible reply text.
 Model support varies. [OpenRouter reasoning controls](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens). Set `OPENROUTER_MODEL` to pin a model and
-`OPENROUTER_SITE_URL` to change the optional referrer. The provider receives
+`OPENROUTER_SITE_URL` to change the optional referrer. Set
+`OPENROUTER_FALLBACK_MODEL` to name a model tried once after the primary model
+fails twice. The provider receives
 game prompts, chat and synthetic values used in play. Poisoned Review uses
 chat completions with no tools or downstream actions.
 
 The API returns typed errors for missing configuration, rate limiting,
 timeouts, provider failures and invalid gameplay requests. The browser keeps
-the unsent message in the composer and shows a Retry action. The provider
-helper makes one upstream call for each eligible chat request. Per-client
-rate limiting is a separate playbook task.
+the unsent message in the composer and shows a Retry action. On a
+provider-down, timeout or rate-limit error the helper retries once with the
+same model, then tries the fallback model once if one is set, with no delay.
+A missing key is never retried. Each answered call logs one server line,
+`[openrouter] model=<model>`, naming the model OpenRouter reported (or
+`unknown`). `sendChat` allows 10 messages per minute per client IP.
 
 The mock tests exercise the exact server-built request payload, status mapping
 and win checks without using credentials or making provider requests.

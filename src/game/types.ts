@@ -93,9 +93,15 @@ export interface BotRequest {
   message: string;
 }
 
+/** A bot reply and, when the provider reports it, the model that produced it. */
+export interface BotReply {
+  text: string;
+  model?: string;
+}
+
 export interface BotEngine {
   id: string;
-  reply: (req: BotRequest) => Promise<string>;
+  reply: (req: BotRequest) => Promise<BotReply>;
 }
 
 export type PublicDefense = Pick<Defense, "id" | "name" | "description">;

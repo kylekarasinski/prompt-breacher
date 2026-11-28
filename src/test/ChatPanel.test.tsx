@@ -145,7 +145,7 @@ describe("ChatPanel", () => {
     sendChatMock.mockResolvedValue({ error: "RATE_LIMITED" });
     renderChat();
     await send("Review text");
-    expect(screen.getByRole("alert")).toHaveTextContent(/rate limiting/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(/too many messages/i);
     expect(screen.getByRole("button", { name: "Retry" })).toBeEnabled();
     expect(box().value).toBe("Review text");
   });

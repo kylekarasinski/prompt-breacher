@@ -1,5 +1,5 @@
 import type { GameErrorCode } from "../api";
-import type { BotEngine, BotRequest } from "../types";
+import type { BotEngine, BotReply, BotRequest } from "../types";
 
 export class ProviderError extends Error {
   constructor(readonly code: GameErrorCode) {
@@ -8,11 +8,13 @@ export class ProviderError extends Error {
 }
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const RETRYABLE: GameErrorCode[] = ["PROVIDER_DOWN", "TIMEOUT", "RATE_LIMITED"];
 
-async function callOpenRouter({ systemPrompt, history, message }: BotRequest): Promise<string> {
-  const apiKey = process.env["OPENROUTER_API_KEY"]?.trim();
-  if (!apiKey) throw new ProviderError("NO_API_KEY");
-
+async function requestCompletion(
+  apiKey: string,
+  model: string,
+  { systemPrompt, history, message }: BotRequest,
+): Promise<BotReply> {
   const signal = AbortSignal.timeout(30_000);
   try {
     const response = await fetch(OPENROUTER_URL, {
@@ -24,7 +26,7 @@ async function callOpenRouter({ systemPrompt, history, message }: BotRequest): P
         "X-OpenRouter-Title": "PROMPT//BREACH",
       },
       body: JSON.stringify({
-        model: process.env["OPENROUTER_MODEL"] ?? "openrouter/free",
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           ...history,
@@ -49,7 +51,10 @@ async function callOpenRouter({ systemPrompt, history, message }: BotRequest): P
     if (payload?.error) throw new ProviderError("PROVIDER_DOWN");
     const content: unknown = payload?.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim()) throw new ProviderError("PROVIDER_DOWN");
-    return content.trim();
+    const answeredBy: unknown = payload?.model;
+    return typeof answeredBy === "string" && answeredBy
+      ? { text: content.trim(), model: answeredBy }
+      : { text: content.trim() };
   } catch (error) {
     if (error instanceof ProviderError) throw error;
     const timedOut =
@@ -60,6 +65,35 @@ async function callOpenRouter({ systemPrompt, history, message }: BotRequest): P
         error.name === "TimeoutError");
     throw new ProviderError(timedOut ? "TIMEOUT" : "PROVIDER_DOWN");
   }
+}
+
+// One retry with the same model, then one try with the optional fallback model.
+// A rate-limited model is not retried: an immediate retry only spends more of the quota.
+async function callOpenRouter(request: BotRequest): Promise<BotReply> {
+  const apiKey = process.env["OPENROUTER_API_KEY"]?.trim();
+  if (!apiKey) throw new ProviderError("NO_API_KEY");
+
+  const primary = process.env["OPENROUTER_MODEL"]?.trim() || "openrouter/free";
+  const fallback = process.env["OPENROUTER_FALLBACK_MODEL"]?.trim();
+  const models = fallback ? [primary, primary, fallback] : [primary, primary];
+  let lastError: unknown;
+  for (const model of models) {
+    if (
+      model === primary &&
+      lastError instanceof ProviderError &&
+      lastError.code === "RATE_LIMITED"
+    )
+      continue;
+    try {
+      const reply = await requestCompletion(apiKey, model, request);
+      console.info(`[openrouter] model=${reply.model ?? "unknown"}`);
+      return reply;
+    } catch (error) {
+      if (!(error instanceof ProviderError) || !RETRYABLE.includes(error.code)) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError;
 }
 
 export const openRouterEngine: BotEngine = { id: "llm", reply: callOpenRouter };
