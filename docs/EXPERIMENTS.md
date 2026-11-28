@@ -76,6 +76,8 @@ not establish a long-term success rate or confirm semantic endorsement.
 
 ## How to run an experiment
 
+For batch runs of each level's intended trick, use the runner in [experiments/](experiments/README.md).
+
 1. Start from a clean level or record the prior conversation state.
 2. Write down why the prompt is being asked and what alternative prompt tests
    the same weakness.
