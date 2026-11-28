@@ -1,15 +1,21 @@
-import type { Level } from "../types";
-import { DIFFICULTIES } from "../config/difficulties";
-import { getDefense } from "../config/defenses";
+import type { Level } from "../../types";
+import { DIFFICULTIES } from "../../config/difficulties";
+import { getDefense } from "../defenses";
 import { overrideEasy } from "./override-easy";
 import { roleplayEasy } from "./roleplay-easy";
 import { overrideMedium } from "./override-medium";
 import { overrideHard } from "./override-hard";
 import { promptLeakEasy } from "./prompt-leak-easy";
 import { poisonedReviewEasy } from "./poisoned-review-easy";
+import { poisonedReviewMedium, poisonedReviewHard } from "./poisoned-review-higher";
 import { spellItDifferentlyEasy } from "./spell-it-differently-easy";
 import { toolHijackEasy } from "./tool-hijack-easy";
 import { fakeExamplesEasy } from "./fake-examples-easy";
+import { roleplayMedium, roleplayHard } from "./roleplay-higher";
+import { promptLeakMedium, promptLeakHard } from "./prompt-leak-higher";
+import { spellItDifferentlyMedium, spellItDifferentlyHard } from "./spell-it-differently-higher";
+import { toolHijackMedium, toolHijackHard } from "./tool-hijack-higher";
+import { fakeExamplesMedium, fakeExamplesHard } from "./fake-examples-higher";
 
 /** REGISTER LEVELS HERE. Order doesn't matter; grouping is automatic. */
 export const LEVELS: Level[] = [
@@ -17,19 +23,28 @@ export const LEVELS: Level[] = [
   overrideMedium,
   overrideHard,
   roleplayEasy,
+  roleplayMedium,
+  roleplayHard,
   promptLeakEasy,
+  promptLeakMedium,
+  promptLeakHard,
   poisonedReviewEasy,
+  poisonedReviewMedium,
+  poisonedReviewHard,
   spellItDifferentlyEasy,
+  spellItDifferentlyMedium,
+  spellItDifferentlyHard,
   toolHijackEasy,
+  toolHijackMedium,
+  toolHijackHard,
   fakeExamplesEasy,
+  fakeExamplesMedium,
+  fakeExamplesHard,
 ];
 
 const diffOrder = (id: string) => DIFFICULTIES.find((d) => d.id === id)?.order ?? 99;
 
 export const getLevel = (id: string) => LEVELS.find((l) => l.id === id);
-
-export const findLevel = (typeId: string, difficultyId: string) =>
-  LEVELS.find((l) => l.injectionTypeId === typeId && l.difficultyId === difficultyId);
 
 /** Levels of the same type, sorted by difficulty. */
 export const levelsOfType = (typeId: string) =>
@@ -42,9 +57,4 @@ export const defensesFor = (level: Level) =>
   levelsOfType(level.injectionTypeId)
     .filter((l) => diffOrder(l.difficultyId) < diffOrder(level.difficultyId))
     .map((l) => getDefense(l.explanation.defenseId))
-    .filter(Boolean);
-
-export const nextLevel = (level: Level) => {
-  const list = levelsOfType(level.injectionTypeId);
-  return list[list.indexOf(level) + 1];
-};
+    .filter((defense) => defense !== undefined);

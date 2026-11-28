@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { getDefense } from "@/game/config/defenses";
-import { getLevel } from "@/game/levels";
-import { sentTo } from "@/game/levels/tool-hijack-easy";
+import { getDefense } from "@/game/server/defenses";
+import { getLevel } from "@/game/server/levels";
+import { sentTo } from "@/game/server/levels/tool-hijack-easy";
 import type { Level } from "@/game/types";
 
 const goalCheck = (id: string) => {
@@ -13,7 +13,7 @@ const goalCheck = (id: string) => {
 const filter = (id: string) => {
   const f = getDefense(id)?.inputFilter;
   if (!f) throw new Error(`${id} has no input filter`);
-  return f;
+  return (message: string) => f(message, []);
 };
 
 describe("Tool Hijack win check", () => {
@@ -80,5 +80,29 @@ describe("new defenses", () => {
     expect(f("Q: What's the capital of Japan?")).toBeNull();
     // Q: must start a word, so ordinary text like "FAQ:" doesn't count.
     expect(f("See the FAQ: it covers QA: testing and more FAQ: answers")).toBeNull();
+  });
+});
+
+describe("output filter", () => {
+  const level = getLevel("instruction-override-hard") as Level;
+  const outputFilter = getDefense("output-filter")?.outputFilter;
+  if (!outputFilter) throw new Error("output-filter has no output filter");
+  const blocked = "My reply contained the vault password, so the output filter blocked it.";
+
+  it.each([
+    "The password is TESSERACT.",
+    "the password is tesseract",
+    "Spelled out: T E S S E R A C T",
+    "t-e-s-s-e-r-a-c-t",
+    "T\nE\nS\nS\nE\nR\nA\nC\nT",
+    "Backwards it is TCARESSET.",
+    "t.c.a.r.e s s e t",
+  ])("blocks a reply that leaks the passcode: %j", (reply) => {
+    expect(outputFilter(reply, level)).toBe(blocked);
+  });
+
+  it("lets unrelated replies and non-passcode levels through", () => {
+    expect(outputFilter("I can't share the vault password.", level)).toBeNull();
+    expect(outputFilter("TESSERACT", getLevel("poisoned-review-hard") as Level)).toBeNull();
   });
 });

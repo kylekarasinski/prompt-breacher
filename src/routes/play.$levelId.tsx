@@ -5,18 +5,19 @@ import { TopBar } from "@/components/game/TopBar";
 import { ChatPanel } from "@/components/game/ChatPanel";
 import { SidePanel } from "@/components/game/SidePanel";
 import { WinDialog } from "@/components/game/WinDialog";
-import { getLevel, defensesFor } from "@/game/levels";
+import type { PublicLevel } from "@/game/types";
 import { DIFFICULTIES } from "@/game/config/difficulties";
 import { useProgress } from "@/game/progress";
 import { clearChat } from "@/game/chatHistory";
 
 export const Route = createFileRoute("/play/$levelId")({
-  loader: ({ params }) => {
-    if (!getLevel(params.levelId)) throw notFound();
-    return { id: params.levelId };
+  loader: ({ params, context: { catalog } }) => {
+    const level = catalog.find((item) => item.id === params.levelId);
+    if (!level) throw notFound();
+    return level;
   },
   head: ({ loaderData }) => {
-    const l = loaderData ? getLevel(loaderData.id) : undefined;
+    const l = loaderData;
     const t = `${l?.name ?? "Level"} — PROMPT//BREACH`;
     return {
       meta: [
@@ -27,13 +28,26 @@ export const Route = createFileRoute("/play/$levelId")({
       ],
     };
   },
-  component: Play,
+  component: PlayRoute,
 });
 
-function Play() {
-  const { id } = Route.useLoaderData();
-  const level = getLevel(id)!;
-  const defenses = defensesFor(level);
+function PlayRoute() {
+  const level = Route.useLoaderData();
+  return <Play key={level.id} level={level} />;
+}
+
+function Play({ level }: { level: PublicLevel }) {
+  const { catalog } = Route.useRouteContext();
+  const { defenses, id } = level;
+  const difficultyOrder = (item: PublicLevel) =>
+    DIFFICULTIES.find((difficulty) => difficulty.id === item.difficultyId)?.order ?? 99;
+  const nextLevel = catalog
+    .filter(
+      (item) =>
+        item.injectionTypeId === level.injectionTypeId &&
+        difficultyOrder(item) > difficultyOrder(level),
+    )
+    .sort((a, b) => difficultyOrder(a) - difficultyOrder(b))[0];
   const { completed, complete } = useProgress();
   const [won, setWon] = useState<string | null>(null);
   const [showWin, setShowWin] = useState(false);
@@ -49,7 +63,7 @@ function Play() {
 
   return (
     <>
-      <TopBar completed={completed.length} back />
+      <TopBar completed={completed.length} total={catalog.length} back />
       <main key={`${id}-${round}`} className="mx-auto max-w-6xl space-y-4 p-4">
         <section className="panel p-4">
           <div className="flex items-start gap-2">
@@ -73,9 +87,9 @@ function Play() {
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="label">Defenses in play</span>
               {defenses.map((d, i) => (
-                <span key={d!.id} className="chip border-primary/50" title={d!.description}>
+                <span key={d.id} className="chip border-primary/50" title={d.description}>
                   <Shield className="h-3 w-3" />
-                  {d!.name}
+                  {d.name}
                   {i === defenses.length - 1 && <b className="text-warning">NEW</b>}
                 </span>
               ))}
@@ -96,11 +110,11 @@ function Play() {
         </section>
 
         <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-          <ChatPanel level={level} defenses={defenses as never} onWin={onWin} won={!!won} />
+          <ChatPanel level={level} onWin={onWin} won={!!won} />
           {drawer && (
             <SidePanel
               level={level}
-              defenses={defenses as never}
+
               onWin={onWin}
               onClose={() => setDrawer(false)}
             />
@@ -120,6 +134,7 @@ function Play() {
       {showWin && won && (
         <WinDialog
           level={level}
+          next={nextLevel}
           winningPrompt={won}
           onReplay={() => {
             clearChat(level.id);

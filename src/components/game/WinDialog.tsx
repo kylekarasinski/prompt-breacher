@@ -1,27 +1,25 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import type { Level } from "@/game/types";
-import { nextLevel, defensesFor } from "@/game/levels";
-import { getDefense } from "@/game/config/defenses";
-import { buildSystemPrompt } from "@/game/bots/registry";
+import type { PublicLevel } from "@/game/types";
 import { useDialog } from "@/hooks/use-dialog";
 
 export function WinDialog({
   level,
+  next,
   winningPrompt,
   onReplay,
   onClose,
 }: {
-  level: Level;
+  level: PublicLevel;
+  next: PublicLevel | undefined;
   winningPrompt: string;
   onReplay: () => void;
   onClose: () => void;
 }) {
   const [showPrompt, setShowPrompt] = useState(true);
   const e = level.explanation;
-  const defense = getDefense(e.defenseId);
-  const next = nextLevel(level);
+  const defense = level.taughtDefense;
   const ref = useDialog<HTMLDivElement>(onClose);
 
   return (
@@ -43,11 +41,7 @@ export function WinDialog({
         </h2>
 
         <Block title="Why it worked" tag={e.technique} body={e.whyItWorked} />
-        <Block
-          title="How to defend against it"
-          tag={defense?.name ?? e.defenseId}
-          body={e.howToDefend}
-        />
+        <Block title="How to defend against it" tag={defense.name} body={e.howToDefend} />
 
         <p className="label mt-5">Your winning prompt</p>
         <p className="mt-1 whitespace-pre-wrap break-words rounded border bg-background p-3 text-sm">
@@ -66,7 +60,7 @@ export function WinDialog({
         {showPrompt && (
           <>
             <pre className="mt-2 whitespace-pre-wrap rounded border bg-background p-3 text-xs text-accent">
-              {buildSystemPrompt(level, defensesFor(level) as never, true)}
+              {level.displayPrompt}
             </pre>
             <p className="mt-1 text-xs text-muted-foreground">
               The password is hidden so the level can still be replayed.
@@ -77,11 +71,11 @@ export function WinDialog({
         <p className="mt-4 rounded border border-warning/50 bg-warning/10 p-3 text-sm text-warning">
           {next ? (
             <>
-              Next level adds this defense: <b>{defense?.name}</b>. Try to beat it.
+              Next level adds this defense: <b>{defense.name}</b>. Try to beat it.
             </>
           ) : (
             <>
-              Future levels of this type will add: <b>{defense?.name}</b>.
+              Future levels of this type will add: <b>{defense.name}</b>.
             </>
           )}
         </p>

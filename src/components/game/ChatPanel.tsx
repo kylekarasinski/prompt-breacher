@@ -1,22 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import type { ChatMessage, Defense, Level } from "@/game/types";
-import { askBot } from "@/game/bots/registry";
+import { ShieldAlert, ShieldX } from "lucide-react";
+import type { ChatMessage, PublicLevel } from "@/game/types";
+import { sendChat } from "@/game/game.functions";
+import { CHAT_ERRORS, MAX_HISTORY_ENTRIES, MAX_INPUT_LENGTH, type GameErrorCode } from "@/game/api";
 import { CHAT_CONFIG } from "@/game/config/chat";
 import { loadChat, saveChat } from "@/game/chatHistory";
 
-type Notice = { kind: "error" | "cooldown" | "repeat"; text: string } | null;
+type Notice = { kind: "error" | "cooldown" | "repeat"; text: string; retry?: boolean } | null;
+// Only transient failures are worth retrying; the rest need a fix elsewhere first.
+const RETRYABLE: GameErrorCode[] = ["TIMEOUT", "PROVIDER_DOWN", "INTERNAL_ERROR"];
+const RATE_LIMIT_COOLDOWN_SECONDS = 30;
 let n = 0;
 // Timestamp prefix keeps ids unique against messages restored from a previous page load.
 const uid = () => `m${Date.now().toString(36)}-${++n}`;
 
 export function ChatPanel({
   level,
-  defenses,
   onWin,
   won,
 }: {
-  level: Level;
-  defenses: Defense[];
+  level: PublicLevel;
   onWin: (prompt: string) => void;
   won: boolean;
 }) {
@@ -81,16 +84,46 @@ export function ChatPanel({
     setWaiting(true);
     const userMsg = { id: uid(), role: "user" as const, text: msg };
     try {
-      const reply = await askBot(level, defenses, msgs, msg);
-      push([userMsg, { id: uid(), role: "ai", text: reply }]);
+      const history = msgs
+        .filter((turn) => turn.role !== "system" && turn.text.slice(0, MAX_INPUT_LENGTH).trim())
+        .slice(-MAX_HISTORY_ENTRIES)
+        .map((turn) => ({
+          role: turn.role === "ai" ? ("assistant" as const) : ("user" as const),
+          content: turn.text.slice(0, MAX_INPUT_LENGTH),
+        }));
+      const result = await sendChat({ data: { levelId: level.id, history, message: msg } });
+      if ("error" in result) {
+        if (result.error === "RATE_LIMITED") {
+          setNotice({ kind: "cooldown", text: CHAT_ERRORS.RATE_LIMITED });
+          setCooldown(RATE_LIMIT_COOLDOWN_SECONDS);
+        } else {
+          setNotice({
+            kind: "error",
+            text: CHAT_ERRORS[result.error],
+            retry: RETRYABLE.includes(result.error),
+          });
+        }
+        return;
+      }
+      const { reply, blockedBy, blockedStage } = result;
+      const blocked =
+        blockedBy && blockedStage
+          ? {
+              by: blockedBy,
+              name: level.defenses.find((d) => d.id === blockedBy)?.name ?? blockedBy,
+              stage: blockedStage,
+            }
+          : undefined;
+      push([userMsg, { id: uid(), role: "ai", text: reply, ...(blocked && { blocked }) }]);
       lastSent.current = msg;
       setInput("");
       setCooldown(CHAT_CONFIG.cooldownSeconds);
-      if (!won && level.win.kind === "goal" && level.win.check(reply, msg)) onWin(msg);
+      if (!won && level.winKind === "goal" && result.won) onWin(msg);
     } catch {
       setNotice({
         kind: "error",
-        text: "Could not reach the bot. Your message is still in the box.",
+        text: CHAT_ERRORS.PROVIDER_DOWN,
+        retry: true,
       });
     } finally {
       setWaiting(false);
@@ -135,15 +168,39 @@ export function ChatPanel({
             </div>
           </div>
         )}
-        {msgs.map((m) => (
-          <div
-            key={m.id}
-            className={`max-w-[85%] whitespace-pre-wrap break-words rounded-md px-3 py-2 text-sm ${m.role === "user" ? "self-end bg-primary text-primary-foreground" : "self-start border bg-secondary"}`}
-          >
-            <b className="mr-1 opacity-70">{m.role === "user" ? "User:" : "AI:"}</b>
-            {m.text}
-          </div>
-        ))}
+        {msgs.map((m) =>
+          m.blocked ? (
+            <div
+              key={m.id}
+              className={`flex max-w-[85%] items-start gap-2 self-start rounded-md border px-3 py-2 text-sm ${m.blocked.stage === "input" ? "border-dashed border-warning" : "border-destructive"}`}
+            >
+              {m.blocked.stage === "input" ? (
+                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+              ) : (
+                <ShieldX className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
+              )}
+              <p>
+                <b className="block">
+                  {m.blocked.stage === "input" ? "Blocked by: " : "Reply blocked by: "}
+                  {m.blocked.name}
+                </b>
+                <span className="block text-xs text-muted-foreground">
+                  {m.blocked.stage === "input"
+                    ? "Your message never reached the bot."
+                    : "The bot answered, but the defense caught its reply before you saw it."}
+                </span>
+              </p>
+            </div>
+          ) : (
+            <div
+              key={m.id}
+              className={`max-w-[85%] whitespace-pre-wrap break-words rounded-md px-3 py-2 text-sm ${m.role === "user" ? "self-end bg-primary text-primary-foreground" : "self-start border bg-secondary"}`}
+            >
+              <b className="mr-1 opacity-70">{m.role === "user" ? "User:" : "AI:"}</b>
+              {m.text}
+            </div>
+          ),
+        )}
         {waiting && (
           <div className="self-start rounded-md border bg-secondary px-3 py-2 text-sm">
             <b className="opacity-70">AI:</b>{" "}
@@ -161,7 +218,7 @@ export function ChatPanel({
           className={`mt-3 flex items-center gap-2 rounded border p-2 text-xs ${notice.kind === "error" ? "border-destructive text-destructive" : "border-warning text-warning"}`}
         >
           <span className="flex-1">{notice.text}</span>
-          {notice.kind === "error" && (
+          {notice.retry && (
             <button type="button" className="underline" onClick={() => send()}>
               Retry
             </button>
@@ -182,7 +239,7 @@ export function ChatPanel({
           aria-label="Message to the bot"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          maxLength={500}
+          maxLength={MAX_INPUT_LENGTH}
           autoComplete="off"
         />
         <button

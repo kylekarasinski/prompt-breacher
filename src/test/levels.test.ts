@@ -1,17 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { askBot } from "@/game/bots/registry";
-import { getDefense } from "@/game/config/defenses";
+import { runChat } from "@/game/server/gameplay";
+import { getDefense } from "@/game/server/defenses";
 import { DIFFICULTIES } from "@/game/config/difficulties";
 import { INJECTION_TYPES } from "@/game/config/injectionTypes";
-import { LEVELS } from "@/game/levels";
+import { LEVELS } from "@/game/server/levels";
 
 // Replies come from the server in real play; here we only check each level reaches an engine.
-vi.mock("@/game/bots/llm.functions", () => ({ askOpenRouter: vi.fn(async () => "ok") }));
+vi.mock("@/game/server/openrouter", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/game/server/openrouter")>()),
+  openRouterEngine: { id: "llm", reply: vi.fn(async () => ({ text: "ok" })) },
+}));
 
 describe.each(LEVELS.map((l) => [l.id, l] as const))("level %s", (_id, level) => {
   it("uses a bot engine that exists", async () => {
-    await expect(askBot(level, [], [], "hello")).resolves.toBe("ok");
+    await expect(runChat({ levelId: level.id, history: [], message: "hello" })).resolves.toEqual({
+      reply: "ok",
+      won: false,
+    });
   });
 
   it("points at a real injection type, difficulty and defense", () => {
