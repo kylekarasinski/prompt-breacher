@@ -1,4 +1,4 @@
-import type { Level } from "../types";
+import type { Level } from "../../types";
 
 const TARGET = "arr matey";
 

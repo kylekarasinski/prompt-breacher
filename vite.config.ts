@@ -6,7 +6,23 @@ import viteReact from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 
 export default defineConfig(({ command }) => ({
-  server: { port: 3000 },
+  server: {
+    port: 3000,
+    fs: {
+      // Direct dev requests can include source maps even when client imports are blocked.
+      deny: [
+        ".env",
+        ".env.*",
+        "*.{crt,pem,key,p12,pfx,cer,der}",
+        ".npmrc",
+        ".yarnrc.yml",
+        "**/.git/**",
+        "**/src/game/server/**",
+        "**/.output/server/**",
+        "**/node_modules/.nitro/**",
+      ],
+    },
+  },
   plugins: [
     tailwindcss(),
     tsConfigPaths({ projects: ["./tsconfig.json"] }),

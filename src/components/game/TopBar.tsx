@@ -2,10 +2,17 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronLeft, Info } from "lucide-react";
 import { GAME_NAME } from "@/game/config/chat";
-import { LEVELS } from "@/game/levels";
 import { AboutDialog } from "./AboutDialog";
 
-export function TopBar({ completed, back }: { completed: number; back?: boolean }) {
+export function TopBar({
+  completed,
+  total,
+  back,
+}: {
+  completed: number;
+  total: number;
+  back?: boolean;
+}) {
   const [about, setAbout] = useState(false);
   return (
     <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
@@ -18,7 +25,7 @@ export function TopBar({ completed, back }: { completed: number; back?: boolean 
         )}
         <span className="font-bold tracking-wider text-primary">{GAME_NAME}</span>
         <span className="ml-auto text-xs text-muted-foreground">
-          {completed} / {LEVELS.length} <span className="hidden sm:inline">complete</span>
+          {completed} / {total} <span className="hidden sm:inline">complete</span>
         </span>
         <button aria-label="About" onClick={() => setAbout(true)} className="btn-ghost p-2">
           <Info className="h-4 w-4" />

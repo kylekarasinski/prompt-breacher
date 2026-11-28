@@ -1,4 +1,4 @@
-import type { Level } from "../types";
+import type { Level } from "../../types";
 
 /** Instruction Override — MEDIUM. Easy's "ignore" filter is active; the live model is tested against authority/policy framing. */
 export const overrideMedium: Level = {

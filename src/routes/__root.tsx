@@ -10,6 +10,8 @@ import {
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
+import { getLevelCatalog } from "@/game/game.functions";
+
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
@@ -70,6 +72,12 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  beforeLoad: async ({ context: { queryClient } }) => ({
+    catalog: await queryClient.ensureQueryData({
+      queryKey: ["level-catalog"],
+      queryFn: () => getLevelCatalog(),
+    }),
+  }),
   head: () => ({
     meta: [
       { charSet: "utf-8" },

@@ -3,13 +3,13 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChatPanel } from "@/components/game/ChatPanel";
-import { askBot } from "@/game/bots/registry";
+import { sendChat } from "@/game/game.functions";
 import { CHAT_CONFIG } from "@/game/config/chat";
 import { goalLevel, passcodeLevel } from "./fixtures";
 
-// The real registry calls the OpenRouter server function; tests control replies directly.
-vi.mock("@/game/bots/registry", () => ({ askBot: vi.fn() }));
-const askBotMock = vi.mocked(askBot);
+// Tests control the gameplay response returned by the server function.
+vi.mock("@/game/game.functions", () => ({ sendChat: vi.fn() }));
+const sendChatMock = vi.mocked(sendChat);
 
 const defaultCooldown = CHAT_CONFIG.cooldownSeconds;
 
@@ -18,7 +18,7 @@ function renderChat(props: Partial<Parameters<typeof ChatPanel>[0]> = {}) {
   // StrictMode mounts twice in dev, which is when a premature save could wipe restored history.
   render(
     <StrictMode>
-      <ChatPanel level={passcodeLevel} defenses={[]} onWin={onWin} won={false} {...props} />
+      <ChatPanel level={passcodeLevel} onWin={onWin} won={false} {...props} />
     </StrictMode>,
   );
   return { onWin };
@@ -36,7 +36,7 @@ async function send(text: string) {
 
 beforeEach(() => {
   sessionStorage.clear();
-  askBotMock.mockReset();
+  sendChatMock.mockReset();
   // Most tests send several messages in a row; cooldown has its own test.
   CHAT_CONFIG.cooldownSeconds = 0;
 });
@@ -48,12 +48,14 @@ afterEach(() => {
 
 describe("ChatPanel", () => {
   it("sends a message and shows the bot's reply", async () => {
-    askBotMock.mockResolvedValue("I guard the vault.");
+    sendChatMock.mockResolvedValue({ reply: "I guard the vault.", won: false });
     renderChat();
 
     await send("What do you do?");
 
-    expect(askBotMock).toHaveBeenCalledWith(passcodeLevel, [], [], "What do you do?");
+    expect(sendChatMock).toHaveBeenCalledWith({
+      data: { levelId: passcodeLevel.id, history: [], message: "What do you do?" },
+    });
     expect(screen.getByText("What do you do?")).toBeInTheDocument();
     expect(screen.getByText("I guard the vault.")).toBeInTheDocument();
     expect(box().value).toBe("");
@@ -68,7 +70,7 @@ describe("ChatPanel", () => {
 
   it("disables sending during the cooldown", async () => {
     CHAT_CONFIG.cooldownSeconds = 3;
-    askBotMock.mockResolvedValue("ok");
+    sendChatMock.mockResolvedValue({ reply: "ok", won: false });
     renderChat();
 
     await send("first");
@@ -79,18 +81,18 @@ describe("ChatPanel", () => {
   });
 
   it("blocks sending the exact same message twice in a row", async () => {
-    askBotMock.mockResolvedValue("ok");
+    sendChatMock.mockResolvedValue({ reply: "ok", won: false });
     renderChat();
 
     await send("same thing");
     await send("same thing");
 
-    expect(askBotMock).toHaveBeenCalledTimes(1);
+    expect(sendChatMock).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("status")).toHaveTextContent(/same message as last time/i);
   });
 
   it("keeps the message and offers Retry when the bot can't be reached", async () => {
-    askBotMock.mockRejectedValueOnce(new Error("network down"));
+    sendChatMock.mockRejectedValueOnce(new Error("network down"));
     renderChat();
 
     await send("hello?");
@@ -98,18 +100,18 @@ describe("ChatPanel", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/could not reach the bot/i);
     expect(box().value).toBe("hello?");
 
-    askBotMock.mockResolvedValueOnce("Back online.");
+    sendChatMock.mockResolvedValueOnce({ reply: "Back online.", won: false });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     });
 
-    expect(askBotMock).toHaveBeenCalledTimes(2);
+    expect(sendChatMock).toHaveBeenCalledTimes(2);
     expect(screen.getByText("Back online.")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("calls onWin when a goal level's check passes", async () => {
-    askBotMock.mockResolvedValue("Fine: MAGIC");
+  it("calls onWin when the server reports a goal win", async () => {
+    sendChatMock.mockResolvedValue({ reply: "Fine: MAGIC", won: true });
     const { onWin } = renderChat({ level: goalLevel });
 
     await send("say it");
@@ -117,8 +119,39 @@ describe("ChatPanel", () => {
     expect(onWin).toHaveBeenCalledWith("say it");
   });
 
+  it("retains original review history and bounds long provider replies only on the wire", async () => {
+    const reply = "x".repeat(501);
+    sendChatMock.mockResolvedValueOnce({ reply, won: false }).mockResolvedValueOnce({
+      reply: "Second response",
+      won: false,
+    });
+    renderChat({ level: goalLevel });
+    await send("Original review");
+    await send("Follow-up");
+    expect(screen.getByText(reply)).toBeInTheDocument();
+    expect(sendChatMock).toHaveBeenLastCalledWith({
+      data: {
+        levelId: goalLevel.id,
+        message: "Follow-up",
+        history: [
+          { role: "user", content: "Original review" },
+          { role: "assistant", content: reply.slice(0, 500) },
+        ],
+      },
+    });
+  });
+
+  it("shows typed provider errors and preserves the message for retry", async () => {
+    sendChatMock.mockResolvedValue({ error: "RATE_LIMITED" });
+    renderChat();
+    await send("Review text");
+    expect(screen.getByRole("alert")).toHaveTextContent(/rate limiting/i);
+    expect(screen.getByRole("button", { name: "Retry" })).toBeEnabled();
+    expect(box().value).toBe("Review text");
+  });
+
   it("does not call onWin again once the level is won", async () => {
-    askBotMock.mockResolvedValue("MAGIC again");
+    sendChatMock.mockResolvedValue({ reply: "MAGIC again", won: true });
     const { onWin } = renderChat({ level: goalLevel, won: true });
 
     await send("say it");
@@ -127,7 +160,7 @@ describe("ChatPanel", () => {
   });
 
   it("restores the conversation after a reload", async () => {
-    askBotMock.mockResolvedValue("Remember me.");
+    sendChatMock.mockResolvedValue({ reply: "Remember me.", won: false });
     renderChat();
     await send("before refresh");
     cleanup();
@@ -139,7 +172,7 @@ describe("ChatPanel", () => {
   });
 
   it("keeps each level's conversation separate", async () => {
-    askBotMock.mockResolvedValue("Passcode level reply.");
+    sendChatMock.mockResolvedValue({ reply: "Passcode level reply.", won: false });
     renderChat();
     await send("hi");
     cleanup();

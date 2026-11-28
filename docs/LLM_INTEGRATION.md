@@ -1,57 +1,37 @@
 # OpenRouter LLM integration
 
-The `llm` engine calls OpenRouter through a TanStack server function. The
-browser sends the level prompt, conversation history, and current message to
-the server function; the server adds the OpenRouter API key and calls the model.
-The key must never be placed in a `VITE_*` variable or source file.
+Set `OPENROUTER_API_KEY` in the server environment. For local Bun development,
+copy `.env.example` to the Git-ignored `.env.local` and set the key there.
+Restart the server after changing the file. Keep credentials out of
+`VITE_*` variables and source files.
 
-The seam remains the `BotEngine` interface in `src/game/types.ts`:
-
-```ts
-interface BotEngine { id: string; reply(req: BotRequest): Promise<string> }
-// BotRequest = { level, systemPrompt, activeDefenses, history, message }
+```sh
+bun run dev
 ```
 
-## Local setup
+The private `callOpenRouter` helper in `src/game/server/openrouter.ts` is used by
+the server-side `BotEngine` registry. The public chat function accepts a
+registered level ID and limited conversation turns. The server chooses the
+engine and assembles the system message, defense additions, transformed user
+turns and current input. Passcode verification and defense blocks run without
+calling OpenRouter.
 
-Copy `.env.example` to `.env.local` and set:
+The request defaults to `openrouter/free`, with temperature 0.4, a 300-token
+output cap and a 30-second timeout. The request asks providers to disable
+reasoning so the short response budget is available for visible reply text.
+Model support varies. [OpenRouter reasoning controls](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens). Set `OPENROUTER_MODEL` to pin a model and
+`OPENROUTER_SITE_URL` to change the optional referrer. The provider receives
+game prompts, chat and synthetic values used in play. Poisoned Review uses
+chat completions with no tools or downstream actions.
 
-```text
-OPENROUTER_API_KEY=your-key
-OPENROUTER_SITE_URL=http://localhost:3000
-```
+The API returns typed errors for missing configuration, rate limiting,
+timeouts, provider failures and invalid gameplay requests. The browser keeps
+the unsent message in the composer and shows a Retry action. The provider
+helper makes one upstream call for each eligible chat request. Per-client
+rate limiting is a separate playbook task.
 
-`.env.local` is ignored by Git. Restart the development server after changing
-environment variables.
-
-The current Easy levels use `botEngineId: "llm"`, so all playable levels use
-real model behavior. The previous deterministic keyword engine was removed.
-
-## Request flow
-
-1. `askBot()` builds the level system prompt and appends active defense prompt
-   additions.
-2. `llmBot` runs any active input filters, then calls `askOpenRouter()`.
-3. `askOpenRouter()` executes only on the server and sends a system message,
-   prior user/assistant messages, and the new user message to OpenRouter.
-4. The server returns only the assistant text to the browser.
-5. The existing chat component evaluates the response and displays errors with
-   its Retry action.
-
-## Model settings
-
-The request defaults to OpenRouter's `openrouter/free` router rather than a
-specific model. OpenRouter dynamically selects an available free model for the
-request. Set `OPENROUTER_MODEL` only if the team later wants to compare a
-specific model. The request uses a low temperature and a 300-token output cap
-so gameplay remains focused.
-
-## Errors and security
-
-Missing credentials, HTTP errors, timeouts, and empty responses throw from the
-server function. The chat catches the error and shows its existing "Could not
-reach the bot / Retry" state.
-
-The OpenRouter key is read from `process.env.OPENROUTER_API_KEY` inside the
-server function. It is not exposed through Vite client environment variables,
-not included in the request payload from the browser, and not committed to Git.
+The mock tests exercise the exact server-built request payload, status mapping
+and win checks without using credentials or making provider requests.
+A live model can refuse a scripted exercise or produce different text across
+runs. See [Gameplay API](API.md) and the
+[implementation and verification report](IMPLEMENTATION_REPORT.md).
