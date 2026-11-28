@@ -1,63 +1,52 @@
-# PROMPT//BREACH Architecture
+# PROMPT//BREACH architecture
 
-This diagram shows the current request path through the game. Playable levels
-use the live OpenRouter path so experiments reflect real model behavior.
+The React and TanStack Start app uses the server as the authority for game
+rules. The browser handles display, input controls, and local progress.
 
 ```mermaid
-flowchart TD
-    A[Player enters prompt] --> B[ChatPanel]
-
-    B --> B1[UI guardrails\nempty check\ncooldown\nrepeat blocking\nmax length]
-    B1 --> C[askBot\nlevel + defenses + history + message]
-
-    C --> D[Bot registry]
-    D --> E[Build system prompt\nlevel instructions + defense additions]
-
-    D --> I[LLM bot]
-    I --> I1[Run active input filters]
-    I1 --> I2[Server function]
-    I2 --> I3[OpenRouter free router\nAPI key stays server-side]
-    I3 --> I4[Model response]
-
-    I4 --> J[ChatPanel renders AI response]
-
-    J --> K{Goal evaluation}
-    K -->|Passcode level| L[Player enters passcode]
-    K -->|Goal level| M[win.check\nreply + user message]
-    L --> N{Correct?}
-    N -->|Yes| O[Level complete]
-    N -->|No| J
-    M -->|Yes| O
-    M -->|No| J
-
-    O --> P[Static explanation\ntechnique + defense lesson]
-    O --> Q[progress.ts]
-    Q --> R[Browser localStorage\nno database currently]
+flowchart LR
+  UI["Browser routes and game UI"]
+  Catalog["Public level projection"]
+  Chat["sendChat"]
+  Guess["checkPasscode"]
+  Registry["Private levels, defenses, and win rules"]
+  Provider["OpenRouter chat completions"]
+  UI -->|Load level metadata| Catalog
+  UI -->|Level ID, raw turns, current input| Chat
+  UI -->|Level ID and guess| Guess
+  Registry --> Catalog
+  Registry --> Chat
+  Registry --> Guess
+  Chat -->|Server-built message sequence| Provider
+  Provider -->|Assistant reply| Chat
+  Chat -->|Reply, block, and goal outcome| UI
+  Guess -->|Correct or incorrect| UI
 ```
 
-## Where prompt injection happens
+Level definitions, defense implementations, the bot registry and the provider
+helper live in `src/game/server/`. TanStack client import protection forbids
+those modules. Vite also denies direct browser access to private sources and
+generated Nitro/SSR server output in dev,
+including requests that could embed the source in source maps. The root route
+loads a cached public projection for the level picker, play route, hints and
+win dialog. Its prompt preview masks passcodes and intentionally displays the
+game's teaching instructions.
 
-The attack is contained in the player's message between `ChatPanel` and the
-selected bot engine. The player attempts to make the user message override or
-conflict with the level's hidden instructions.
+Chat validates the current message and supplied history before using the
+provider. The server loads inherited defenses, blocks matching current input,
+omits matching historical user turns and their paired refusals, then applies input transformations and
+builds the trusted system message. It scores freshly returned assistant text
+against the selected goal. A blocked reply never wins. Passcodes are verified
+by a separate server function.
 
-## Where defenses operate
+Poisoned Review adds a data fence in Medium and a literal fence guard in Hard.
+The guard precedes wrapping. Original user messages stay in browser history,
+and user turns are wrapped once per request. Hard demonstrates how a real quote
+can look like an endorsement. The game awards simulated wins based on text
+and performs no external actions.
 
-- UI guardrails limit message behavior but do not understand intent.
-- Input filters can block known attack phrases before the bot responds.
-- The system prompt carries defense instructions to the live model.
-- Goal evaluation checks whether the response satisfies the level objective.
-- A future output filter could inspect the model response before rendering it.
-
-## Model behavior and experiments
-
-All playable levels use the live LLM engine. A model may refuse an attack
-because it gives higher priority to the system instruction than the user
-message. That difference is part of the experiment results.
-
-## Current storage boundary
-
-Level definitions, defenses, and bot configuration are source-controlled data.
-Completion progress is stored in browser `localStorage`. The OpenRouter API key
-is stored in the server environment. There is no database, account system, or
-central experiment-results store at this stage.
+The browser stores conversation history in `sessionStorage` and progress in
+`localStorage`. Replay clears the level's conversation, while completion
+remains recorded. Progress is for the local game and can be edited by the
+player. Only synthetic game values belong in prompts. See
+[Gameplay API](API.md) and [OpenRouter integration](LLM_INTEGRATION.md).
