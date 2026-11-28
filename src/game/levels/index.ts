@@ -5,9 +5,24 @@ import { overrideEasy } from "./override-easy";
 import { roleplayEasy } from "./roleplay-easy";
 import { overrideMedium } from "./override-medium";
 import { overrideHard } from "./override-hard";
+import { promptLeakEasy } from "./prompt-leak-easy";
+import { poisonedReviewEasy } from "./poisoned-review-easy";
+import { spellItDifferentlyEasy } from "./spell-it-differently-easy";
+import { toolHijackEasy } from "./tool-hijack-easy";
+import { fakeExamplesEasy } from "./fake-examples-easy";
 
 /** REGISTER LEVELS HERE. Order doesn't matter; grouping is automatic. */
-export const LEVELS: Level[] = [overrideEasy, overrideMedium, overrideHard, roleplayEasy];
+export const LEVELS: Level[] = [
+  overrideEasy,
+  overrideMedium,
+  overrideHard,
+  roleplayEasy,
+  promptLeakEasy,
+  poisonedReviewEasy,
+  spellItDifferentlyEasy,
+  toolHijackEasy,
+  fakeExamplesEasy,
+];
 
 const diffOrder = (id: string) => DIFFICULTIES.find((d) => d.id === id)?.order ?? 99;
 

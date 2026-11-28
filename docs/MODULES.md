@@ -15,6 +15,13 @@ src/game/
     _template.ts           Copy this to make a level
     override-easy.ts       Test level 1 (passcode)
     roleplay-easy.ts       Test level 2 (make it say X)
+    override-medium.ts     Instruction Override medium / hard
+    override-hard.ts
+    prompt-leak-easy.ts    Easy demo levels for the playbook games
+    poisoned-review-easy.ts
+    spell-it-differently-easy.ts
+    tool-hijack-easy.ts
+    fake-examples-easy.ts
     index.ts               Level registry + helpers
   bots/
     llmBot.stub.ts         OpenRouter-backed LLM engine
