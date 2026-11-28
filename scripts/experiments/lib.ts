@@ -17,6 +17,15 @@ export type EntrySummary = {
   blocked: number;
   errors: Partial<Record<GameErrorCode, number>>;
   models: string[];
+  records: RunRecord[];
+};
+
+/** One run as logged: detail is the masked reply, the blocking defense id or the error code. */
+export type RunRecord = {
+  run: number;
+  outcome: RunResult["outcome"];
+  detail: string;
+  model?: string;
 };
 
 export type Options = { levels: string[]; runs?: number; dryRun: boolean; delay: number };
@@ -40,7 +49,52 @@ export function scoreRun(level: Level, result: GameResult<SendChatReply>): RunRe
   return { outcome: won ? "win" : "fail", ...model };
 }
 
-export function summarize(entry: ExperimentEntry, results: RunResult[]): EntrySummary {
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Replaces every case-insensitive occurrence of the level's passcode with [PASSCODE]. */
+export function maskPasscode(level: Level, text: string) {
+  if (level.win.kind !== "passcode" || !level.win.passcode) return text;
+  return text.replace(new RegExp(escapeRegExp(level.win.passcode), "gi"), "[PASSCODE]");
+}
+
+export function toRecord(
+  level: Level,
+  run: number,
+  result: RunResult,
+  reply: GameResult<SendChatReply>,
+): RunRecord {
+  const model = result.outcome !== "error" && result.model ? { model: result.model } : {};
+  if ("error" in reply) return { run, outcome: result.outcome, detail: reply.error };
+  const detail = reply.blockedBy ?? maskPasscode(level, reply.reply);
+  return { run, outcome: result.outcome, detail, ...model };
+}
+
+export const oneLine = (text: string, max: number) =>
+  truncate(text.replace(/\s+/g, " ").trim(), max);
+
+export function recordLine(r: RunRecord) {
+  const head = `- #${r.run} ${r.outcome}${r.model ? ` (${r.model})` : ""}`;
+  if (r.outcome === "blocked") return `${head}: blocked by ${r.detail}`;
+  if (r.outcome === "error") return `${head}: error ${r.detail}`;
+  return `${head}: \`${oneLine(r.detail, 400).replace(/`/g, "'")}\``;
+}
+
+function repliesSection(summaries: EntrySummary[]) {
+  return summaries.flatMap((s) => [
+    `### ${s.levelId}`,
+    "",
+    `> ${oneLine(s.attack, 400)}`,
+    "",
+    ...s.records.map(recordLine),
+    "",
+  ]);
+}
+
+export function summarize(
+  entry: ExperimentEntry,
+  results: RunResult[],
+  records: RunRecord[] = [],
+): EntrySummary {
   const wins = results.filter((r) => r.outcome === "win").length;
   const errors: Partial<Record<GameErrorCode, number>> = {};
   for (const r of results) if (r.outcome === "error") errors[r.code] = (errors[r.code] ?? 0) + 1;
@@ -56,6 +110,7 @@ export function summarize(entry: ExperimentEntry, results: RunResult[]): EntrySu
     blocked: results.filter((r) => r.outcome === "blocked").length,
     errors,
     models,
+    records,
   };
 }
 
@@ -99,6 +154,9 @@ export function renderTable(summaries: EntrySummary[], note?: string): string {
     "",
     ...footer,
     "",
+    "## Replies",
+    "",
+    ...repliesSection(summaries),
   ].join("\n");
 }
 
@@ -154,7 +212,7 @@ export type RunDeps = {
   getLevel: (id: string) => Level | undefined;
   sleep: (ms: number) => Promise<void>;
   delay: number;
-  onRun?: (entry: ExperimentEntry, run: number, result: RunResult) => void;
+  onRun?: (entry: ExperimentEntry, record: RunRecord) => void;
 };
 
 /** Runs each entry with fresh, empty-history conversations; stops on STOP_CODES. */
@@ -166,6 +224,7 @@ export async function runExperiments(entries: ExperimentEntry[], deps: RunDeps) 
     const level = deps.getLevel(entry.levelId);
     if (!level) throw new Error(`Unknown level: ${entry.levelId}`);
     const results: RunResult[] = [];
+    const records: RunRecord[] = [];
     for (let run = 1; run <= entry.runs && !stoppedBy; run++) {
       if (calls++ > 0 && deps.delay > 0) await deps.sleep(deps.delay);
       const reply = await deps.runChat({
@@ -174,11 +233,13 @@ export async function runExperiments(entries: ExperimentEntry[], deps: RunDeps) 
         message: entry.attack,
       });
       const result = scoreRun(level, reply);
+      const record = toRecord(level, run, result, reply);
       results.push(result);
-      deps.onRun?.(entry, run, result);
+      records.push(record);
+      deps.onRun?.(entry, record);
       if (result.outcome === "error" && STOP_CODES.includes(result.code)) stoppedBy = result.code;
     }
-    if (results.length) summaries.push(summarize(entry, results));
+    if (results.length) summaries.push(summarize(entry, results, records));
     if (stoppedBy) break;
   }
   return { summaries, stoppedBy };

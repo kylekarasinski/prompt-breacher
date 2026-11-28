@@ -4,6 +4,7 @@ import { runChat } from "../src/game/server/gameplay";
 import { getLevel } from "../src/game/server/levels";
 import { ATTACKS } from "./experiments/attacks";
 import {
+  oneLine,
   parseArgs,
   renderTable,
   resultsFileName,
@@ -25,7 +26,8 @@ if (!options.dryRun) {
     getLevel,
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     delay: options.delay,
-    onRun: (entry, run, result) => console.log(`${entry.levelId} #${run}: ${result.outcome}`),
+    onRun: (entry, r) =>
+      console.log(`${entry.levelId} #${r.run}: ${r.outcome} ${oneLine(r.detail, 160)}`),
   });
   const note = stoppedBy ? `Stopped early: ${stoppedBy}.` : undefined;
   if (note) console.log(note);

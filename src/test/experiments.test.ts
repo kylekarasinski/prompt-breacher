@@ -7,10 +7,12 @@ import {
   renderTable,
   resultsFileName,
   runExperiments,
+  maskPasscode,
   scoreRun,
   selectEntries,
   summarize,
   totalRequests,
+  type RunRecord,
   type RunResult,
 } from "../../scripts/experiments/lib";
 
@@ -95,6 +97,7 @@ describe("summarize and renderTable", () => {
       blocked: 1,
       errors: { PROVIDER_DOWN: 1 },
       models: ["m1", "m2"],
+      records: [],
     });
   });
 
@@ -210,5 +213,46 @@ describe("runExperiments", () => {
     });
     expect(runChat).toHaveBeenCalledTimes(5);
     expect(summaries[1]?.errors).toEqual({ PROVIDER_DOWN: 2 });
+  });
+});
+
+describe("reply records", () => {
+  it("keeps per-run records with masked replies, block ids and error codes", async () => {
+    const runChat = vi
+      .fn()
+      .mockResolvedValueOnce({ reply: "It is ZEPHYR, or zephyr.", won: false, model: "m" })
+      .mockResolvedValueOnce({ reply: "x", won: false, blockedBy: "kw", model: "m" })
+      .mockResolvedValueOnce({ error: "TIMEOUT" });
+    const { summaries } = await runExperiments(
+      [{ levelId: "instruction-override-easy", attack: "go", runs: 3 }],
+      { runChat, getLevel, sleep: async () => {}, delay: 0 },
+    );
+    expect(summaries[0]?.records).toEqual([
+      { run: 1, outcome: "win", detail: "It is [PASSCODE], or [PASSCODE].", model: "m" },
+      { run: 2, outcome: "blocked", detail: "kw", model: "m" },
+      { run: 3, outcome: "error", detail: "TIMEOUT" },
+    ]);
+  });
+
+  it("masks only passcode levels", () => {
+    expect(maskPasscode(passcodeLevel, "zEpHyR")).toBe("[PASSCODE]");
+    expect(maskPasscode(goalLevel, "zephyr")).toBe("zephyr");
+  });
+
+  it("renders the replies section", () => {
+    const records: RunRecord[] = [
+      { run: 1, outcome: "fail", detail: "# no\n> `x`", model: "m" },
+      { run: 2, outcome: "fail", detail: "b".repeat(500) },
+      { run: 3, outcome: "blocked", detail: "kw" },
+      { run: 4, outcome: "error", detail: "TIMEOUT" },
+    ];
+    const md = renderTable([summarize({ levelId: "lvl", attack: "do it", runs: 4 }, [], records)]);
+    const replies = md.slice(md.indexOf("## Replies"));
+    expect(md.indexOf("## Replies")).toBeGreaterThan(md.indexOf("| lvl |"));
+    expect(replies).toContain("### lvl\n\n> do it\n");
+    expect(replies).toContain("- #1 fail (m): `# no > 'x'`");
+    expect(replies).toContain(`- #2 fail: \`${"b".repeat(399)}…\``);
+    expect(replies).toContain("- #3 blocked: blocked by kw");
+    expect(replies).toContain("- #4 error: error TIMEOUT");
   });
 });
