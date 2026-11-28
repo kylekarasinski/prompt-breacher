@@ -27,8 +27,9 @@ export type GameErrorCode =
 export type GameResult<T> = T | { error: GameErrorCode };
 
 export const CHAT_ERRORS: Record<GameErrorCode, string> = {
-  NO_API_KEY: "The server is missing its OpenRouter API key.",
-  RATE_LIMITED: "Too many messages right now. Wait a minute and try again.",
+  NO_API_KEY:
+    "The server has no OpenRouter API key. Add OPENROUTER_API_KEY to .env.local and restart the server.",
+  RATE_LIMITED: "Too many messages right now. Wait for the countdown, then try again.",
   PROVIDER_DOWN: "Could not reach the bot. Your message is still in the box.",
   TIMEOUT: "The bot took too long to respond.",
   INVALID_INPUT: "Enter a message of 1 to 500 characters.",

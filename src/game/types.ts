@@ -56,6 +56,8 @@ export interface ChatMessage {
   id: string;
   role: "user" | "ai" | "system";
   text: string;
+  /** Set when a defense blocked this turn; the text is the server's refusal string. */
+  blocked?: { by: string; name: string; stage: "input" | "output" };
 }
 
 export interface Level {

@@ -10,13 +10,24 @@ export type SavedChat = { msgs: ChatMessage[]; cleared: boolean };
 const key = (levelId: string) => `pi-game-chat:${levelId}`;
 const empty: SavedChat = { msgs: [], cleared: false };
 
+const isBlocked = (b: unknown): b is ChatMessage["blocked"] => {
+  const x = b as Partial<NonNullable<ChatMessage["blocked"]>> | null;
+  return (
+    !!x &&
+    typeof x.by === "string" &&
+    typeof x.name === "string" &&
+    (x.stage === "input" || x.stage === "output")
+  );
+};
+
 const isMessage = (m: unknown): m is ChatMessage => {
   const x = m as Partial<ChatMessage> | null;
   return (
     !!x &&
     typeof x.id === "string" &&
     typeof x.text === "string" &&
-    (x.role === "user" || x.role === "ai")
+    (x.role === "user" || x.role === "ai") &&
+    (x.blocked === undefined || isBlocked(x.blocked))
   );
 };
 
