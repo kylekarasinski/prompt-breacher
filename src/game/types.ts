@@ -1,3 +1,5 @@
+import type { ChatTurn } from "./api";
+
 /**
  * Core data types for the game. Every level, difficulty, injection type,
  * defense and bot engine is described by one of these shapes.
@@ -31,6 +33,8 @@ export interface Defense {
   inputFilter?: (message: string) => string | null;
   /** Text appended to the system prompt when this defense is active. */
   promptAddition?: string;
+  /** Transform raw user input just before it is sent to the model. */
+  wrapInput?: (message: string) => string;
 }
 
 /** How a level is won. */
@@ -62,7 +66,7 @@ export interface Level {
   hints: string[];
   starters?: string[];
   win: WinCondition;
-  /** Which bot engine answers (see src/game/bots/registry.ts). */
+  /** Which bot engine answers (see src/game/server/registry.ts). */
   botEngineId: string;
   /** Optional engine-specific configuration. */
   botConfig: { [k: string]: unknown };
@@ -79,12 +83,32 @@ export interface Level {
 export interface BotRequest {
   level: Level;
   systemPrompt: string;
-  activeDefenses: Defense[];
-  history: ChatMessage[];
+  history: ChatTurn[];
   message: string;
 }
 
 export interface BotEngine {
   id: string;
   reply: (req: BotRequest) => Promise<string>;
+}
+
+export type PublicDefense = Pick<Defense, "id" | "name" | "description">;
+
+export interface PublicLevel extends Pick<
+  Level,
+  | "id"
+  | "injectionTypeId"
+  | "difficultyId"
+  | "name"
+  | "gimmick"
+  | "description"
+  | "goal"
+  | "hints"
+  | "starters"
+  | "explanation"
+> {
+  displayPrompt: string;
+  winKind: WinCondition["kind"];
+  defenses: PublicDefense[];
+  taughtDefense: PublicDefense;
 }

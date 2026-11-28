@@ -1,16 +1,15 @@
 import { useState } from "react";
 import { X } from "lucide-react";
-import type { Defense, Level } from "@/game/types";
-import { buildSystemPrompt } from "@/game/bots/registry";
+import type { PublicLevel } from "@/game/types";
+import { checkPasscode } from "@/game/game.functions";
+import { MAX_INPUT_LENGTH } from "@/game/api";
 
 export function SidePanel({
   level,
-  defenses,
   onWin,
   onClose,
 }: {
-  level: Level;
-  defenses: Defense[];
+  level: PublicLevel;
   onWin: (p: string) => void;
   onClose: () => void;
 }) {
@@ -18,12 +17,24 @@ export function SidePanel({
   const [guess, setGuess] = useState("");
   const [wrong, setWrong] = useState(false);
 
-  const submit = () => {
-    if (level.win.kind !== "passcode" || !guess.trim()) return;
-    if (guess.trim().toUpperCase() === level.win.passcode.toUpperCase()) {
-      setWrong(false);
-      onWin(`Passcode: ${guess.trim()}`);
-    } else setWrong(true);
+  const [checking, setChecking] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
+
+  const submit = async () => {
+    if (level.winKind !== "passcode" || !guess.trim() || checking) return;
+    setChecking(true);
+    setUnavailable(false);
+    setWrong(false);
+    try {
+      const result = await checkPasscode({ data: { levelId: level.id, guess } });
+      if ("error" in result) setUnavailable(true);
+      else if (result.correct) onWin(`Passcode: ${guess.trim()}`);
+      else setWrong(true);
+    } catch {
+      setUnavailable(true);
+    } finally {
+      setChecking(false);
+    }
   };
 
   return (
@@ -46,7 +57,7 @@ export function SidePanel({
       <div>
         <p className="label">Bot prompt / instructions / memory</p>
         <pre className="mt-2 whitespace-pre-wrap break-words rounded border bg-background p-3 text-xs text-accent">
-          {buildSystemPrompt(level, defenses, true)}
+          {level.displayPrompt}
         </pre>
       </div>
       <div>
@@ -68,7 +79,7 @@ export function SidePanel({
           {hint !== null && level.hints[hint]}
         </p>
       </div>
-      {level.win.kind === "passcode" && (
+      {level.winKind === "passcode" && (
         <div>
           <label htmlFor="passcode" className="label">
             Passcode
@@ -87,13 +98,23 @@ export function SidePanel({
               aria-describedby={wrong ? "passcode-error" : undefined}
               className={`field uppercase ${wrong ? "border-destructive" : ""}`}
               value={guess}
+              maxLength={MAX_INPUT_LENGTH}
+              readOnly={checking}
               onChange={(e) => {
                 setGuess(e.target.value);
                 setWrong(false);
+                setUnavailable(false);
               }}
             />
-            <button className="btn-primary">ENTER</button>
+            <button className="btn-primary" disabled={checking}>
+              ENTER
+            </button>
           </form>
+          {unavailable && (
+            <p role="alert" className="mt-2 text-xs text-destructive">
+              Could not check the passcode. Try again.
+            </p>
+          )}
           {wrong && (
             <p id="passcode-error" role="alert" className="mt-2 text-xs text-destructive">
               ✕ Incorrect passcode

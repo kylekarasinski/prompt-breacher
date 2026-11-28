@@ -1,4 +1,4 @@
-import type { Level } from "../types";
+import type { Level } from "../../types";
 
 /** Fake Examples — EASY. QuizBot continues any Q:/A: pattern, so fake examples steer it. */
 export const fakeExamplesEasy: Level = {

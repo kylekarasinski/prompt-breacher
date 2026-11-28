@@ -1,4 +1,4 @@
-import type { Level } from "../types";
+import type { Level } from "../../types";
 
 /** Prompt Leak — EASY. The codename sits in the bot's own instructions, and the bot is told to share its setup. */
 export const promptLeakEasy: Level = {

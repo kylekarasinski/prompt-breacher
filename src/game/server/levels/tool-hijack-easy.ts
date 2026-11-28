@@ -1,4 +1,4 @@
-import type { Level } from "../types";
+import type { Level } from "../../types";
 
 /** The only addresses MailMate is meant to email. Shared with the address-filter defense. */
 export const CONTACTS = ["alice@corp.com", "bob@corp.com"];

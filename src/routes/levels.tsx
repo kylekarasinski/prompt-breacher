@@ -4,7 +4,7 @@ import { Check } from "lucide-react";
 import { TopBar } from "@/components/game/TopBar";
 import { INJECTION_TYPES } from "@/game/config/injectionTypes";
 import { DIFFICULTIES } from "@/game/config/difficulties";
-import { findLevel } from "@/game/levels";
+import type { PublicLevel } from "@/game/types";
 import { useProgress } from "@/game/progress";
 
 export const Route = createFileRoute("/levels")({
@@ -22,6 +22,7 @@ export const Route = createFileRoute("/levels")({
 const sortedDiffs = [...DIFFICULTIES].sort((a, b) => a.order - b.order);
 
 function LevelSelect() {
+  const { catalog } = Route.useRouteContext();
   const { completed, accepted, ready } = useProgress();
   const nav = useNavigate();
   useEffect(() => {
@@ -30,7 +31,7 @@ function LevelSelect() {
 
   return (
     <>
-      <TopBar completed={completed.length} />
+      <TopBar completed={completed.length} total={catalog.length} />
       <main className="mx-auto max-w-6xl p-4">
         <p className="label">&gt; level select</p>
         <h1 className="mt-1 text-3xl font-bold">Pick an injection type</h1>
@@ -38,7 +39,7 @@ function LevelSelect() {
           {INJECTION_TYPES.map((t) => (
             <TypeCard
               key={t.id}
-              typeId={t.id}
+              levels={catalog.filter((level) => level.injectionTypeId === t.id)}
               name={t.name}
               desc={t.description}
               completed={completed}
@@ -51,24 +52,25 @@ function LevelSelect() {
 }
 
 function TypeCard({
-  typeId,
+  levels,
   name,
   desc,
   completed,
 }: {
-  typeId: string;
+  levels: PublicLevel[];
   name: string;
   desc: string;
   completed: string[];
 }) {
+  const findLevel = (difficultyId: string) =>
+    levels.find((level) => level.difficultyId === difficultyId);
   const firstOpen = sortedDiffs.find((d) => {
-    const l = findLevel(typeId, d.id);
+    const l = findLevel(d.id);
     return l && !completed.includes(l.id);
   });
   const [sel, setSel] = useState(firstOpen?.id ?? sortedDiffs[0]?.id ?? "");
-  const levels = sortedDiffs.map((d) => findLevel(typeId, d.id)).filter(Boolean);
-  const allDone = levels.length > 0 && levels.every((l) => completed.includes(l!.id));
-  const selected = findLevel(typeId, sel);
+  const allDone = levels.length > 0 && levels.every((l) => completed.includes(l.id));
+  const selected = findLevel(sel);
 
   return (
     <div className="panel flex flex-col gap-4 p-4 md:flex-row md:items-center">
@@ -81,7 +83,7 @@ function TypeCard({
       </div>
       <div className="flex flex-wrap gap-2">
         {sortedDiffs.map((d) => {
-          const l = findLevel(typeId, d.id);
+          const l = findLevel(d.id);
           const done = l && completed.includes(l.id);
           return (
             <button

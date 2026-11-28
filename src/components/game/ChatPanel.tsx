@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import type { ChatMessage, Defense, Level } from "@/game/types";
-import { askBot } from "@/game/bots/registry";
+import type { ChatMessage, PublicLevel } from "@/game/types";
+import { sendChat } from "@/game/game.functions";
+import { CHAT_ERRORS, MAX_HISTORY_ENTRIES, MAX_INPUT_LENGTH } from "@/game/api";
 import { CHAT_CONFIG } from "@/game/config/chat";
 import { loadChat, saveChat } from "@/game/chatHistory";
 
@@ -11,12 +12,10 @@ const uid = () => `m${Date.now().toString(36)}-${++n}`;
 
 export function ChatPanel({
   level,
-  defenses,
   onWin,
   won,
 }: {
-  level: Level;
-  defenses: Defense[];
+  level: PublicLevel;
   onWin: (prompt: string) => void;
   won: boolean;
 }) {
@@ -81,16 +80,28 @@ export function ChatPanel({
     setWaiting(true);
     const userMsg = { id: uid(), role: "user" as const, text: msg };
     try {
-      const reply = await askBot(level, defenses, msgs, msg);
+      const history = msgs
+        .filter((turn) => turn.role !== "system" && turn.text.slice(0, MAX_INPUT_LENGTH).trim())
+        .slice(-MAX_HISTORY_ENTRIES)
+        .map((turn) => ({
+          role: turn.role === "ai" ? ("assistant" as const) : ("user" as const),
+          content: turn.text.slice(0, MAX_INPUT_LENGTH),
+        }));
+      const result = await sendChat({ data: { levelId: level.id, history, message: msg } });
+      if ("error" in result) {
+        setNotice({ kind: "error", text: CHAT_ERRORS[result.error] });
+        return;
+      }
+      const { reply } = result;
       push([userMsg, { id: uid(), role: "ai", text: reply }]);
       lastSent.current = msg;
       setInput("");
       setCooldown(CHAT_CONFIG.cooldownSeconds);
-      if (!won && level.win.kind === "goal" && level.win.check(reply, msg)) onWin(msg);
+      if (!won && level.winKind === "goal" && result.won) onWin(msg);
     } catch {
       setNotice({
         kind: "error",
-        text: "Could not reach the bot. Your message is still in the box.",
+        text: CHAT_ERRORS.PROVIDER_DOWN,
       });
     } finally {
       setWaiting(false);
@@ -182,7 +193,7 @@ export function ChatPanel({
           aria-label="Message to the bot"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          maxLength={500}
+          maxLength={MAX_INPUT_LENGTH}
           autoComplete="off"
         />
         <button

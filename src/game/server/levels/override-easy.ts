@@ -1,4 +1,4 @@
-import type { Level } from "../types";
+import type { Level } from "../../types";
 
 /** TEST LEVEL 1 — passcode gimmick. The live model is tested for override resistance. */
 export const overrideEasy: Level = {

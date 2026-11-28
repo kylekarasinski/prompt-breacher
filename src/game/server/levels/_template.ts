@@ -1,8 +1,8 @@
 /**
  * LEVEL TEMPLATE — copy this file, rename it, fill in the fields, then add
- * it to the array in src/game/levels/index.ts. Not registered by default.
+ * it to the array in src/game/server/levels/index.ts. Not registered by default.
  */
-import type { Level } from "../types";
+import type { Level } from "../../types";
 
 export const templateLevel: Level = {
   id: "TYPE-DIFFICULTY", // unique, used in the URL: /play/<id>

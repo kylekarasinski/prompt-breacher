@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { getDefense } from "@/game/config/defenses";
-import { getLevel } from "@/game/levels";
-import { sentTo } from "@/game/levels/tool-hijack-easy";
+import { getDefense } from "@/game/server/defenses";
+import { getLevel } from "@/game/server/levels";
+import { sentTo } from "@/game/server/levels/tool-hijack-easy";
 import type { Level } from "@/game/types";
 
 const goalCheck = (id: string) => {
